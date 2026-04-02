@@ -1,12 +1,13 @@
 from flask import Flask, request, Response
 from cryptography.fernet import Fernet
 import os
-import requests
 
 app = Flask(__name__)
 
 FERNET_KEY = os.getenv("FERNET_KEY")
-GITHUB_USERS = os.getenv("GITHUB_USERS", "").split(",")
+
+if not FERNET_KEY:
+    raise RuntimeError("FERNET_KEY is missing")
 
 cipher = Fernet(FERNET_KEY.encode())
 
@@ -18,24 +19,6 @@ def home():
 
 @app.route("/decrypt", methods=["POST"])
 def decrypt_file():
-    auth = request.headers.get("Authorization")
-    if not auth:
-        return {"error": "Missing token"}, 401
-
-    token = auth.replace("Bearer ", "")
-
-    user = requests.get(
-        "https://api.github.com/user",
-        headers={"Authorization": f"Bearer {token}"}
-    )
-
-    if user.status_code != 200:
-        return {"error": "invalid token"}, 403
-
-    username = user.json()["login"]
-    if username not in GITHUB_USERS:
-        return {"error": "Subscription inactive"}, 403
-
     file = request.files["file"]
     lines = file.read().decode("utf-8").splitlines()
 
